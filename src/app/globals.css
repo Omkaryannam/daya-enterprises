@@ -1,0 +1,215 @@
+@import "tailwindcss";
+
+/*
+  Daya Enterprises palette (derived from the logo)
+  ------------------------------------------------
+  forest    #2A4836  primary brand: navbar, buttons, footer
+  paper     #F8F9FA  page background
+  ink       #1A1A1A  text
+  sky       #1F8BFF  Sky Surge: interactive highlights, focus, links
+  flame     #FF6A13  Flame Orange: call-to-action
+
+  Text on flame is always ink (white on flame is only 2.9:1).
+  On green surfaces use sky-soft, not sky (sky on forest is only 3:1).
+
+  Type pairing
+  ------------
+  display   Playfair Display (serif) - headings & titles, echoes the
+            wordmark in the logo
+  body      Inter (sans-serif) - body copy, nav, buttons, UI labels
+*/
+:root {
+  --color-forest: #2a4836;
+  --color-forest-deep: #1f3628;
+  --color-forest-night: #0f1b14;
+  --color-paper: #f8f9fa;
+  --color-paper-alt: #edf1ee;
+  --color-ink: #1a1a1a;
+  --color-ink-soft: #4a544e;
+  --color-line: #d9e0db;
+  --color-sky: #1f8bff;
+  --color-sky-ink: #0a5fc7;
+  --color-sky-soft: #8cc7ff;
+  --color-flame: #ff6a13;
+  --color-flame-deep: #c74a06;
+  --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@theme inline {
+  --color-forest: var(--color-forest);
+  --color-forest-deep: var(--color-forest-deep);
+  --color-forest-night: var(--color-forest-night);
+  --color-paper: var(--color-paper);
+  --color-paper-alt: var(--color-paper-alt);
+  --color-ink: var(--color-ink);
+  --color-ink-soft: var(--color-ink-soft);
+  --color-line: var(--color-line);
+  --color-sky: var(--color-sky);
+  --color-sky-ink: var(--color-sky-ink);
+  --color-sky-soft: var(--color-sky-soft);
+  --color-flame: var(--color-flame);
+  --color-flame-deep: var(--color-flame-deep);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: var(--color-paper);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-display);
+}
+
+::selection {
+  background: var(--color-sky-soft);
+  color: var(--color-ink);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-paper-alt);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-forest);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-forest-deep);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-sky);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Headline on the dark hero: white fading to a light sky blue */
+.text-gradient {
+  background: linear-gradient(90deg, #ffffff 0%, #ffffff 55%, #d6ebff 78%, #8cc7ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Forest-green translucent surface (navbar when scrolled, mobile menu) */
+.glass {
+  background: rgba(42, 72, 54, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Grid on dark surfaces (3D fallbacks, project placeholders) */
+.grid-lines {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+/* Grid on light surfaces */
+.grid-lines-light {
+  background-image:
+    linear-gradient(rgba(42, 72, 54, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(42, 72, 54, 0.07) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.section-label {
+  letter-spacing: 0.25em;
+}
+
+.hero-fallback-glow {
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(ellipse at 50% 30%, rgba(42, 72, 54, 0.9), transparent 65%);
+  animation: heroGlowDrift 16s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes heroGlowDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translate3d(1.5%, -2.5%, 0) scale(1.06);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes drawLine {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
