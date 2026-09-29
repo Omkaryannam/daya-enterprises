@@ -53,7 +53,6 @@ export default function InfrastructureScene({
 }) {
   const isFull = tier === "full";
   const { camera, size } = useThree();
-
   // PORTRAIT FIX. The camera has a fixed *vertical* FOV of 52deg, so on a
   // 9:19.5 phone the horizontal FOV collapses to ~25deg (82deg on desktop).
   // Everything on the shoulders (x = +-7..9) then sits outside the frustum
@@ -61,8 +60,19 @@ export default function InfrastructureScene({
   // screens we widen the FOV a bit and pull the roadside props toward the
   // road centre with `spread` (1 on landscape, ~0.5 on a phone).
   const aspect = size.width / Math.max(1, size.height);
-  const spread = aspect >= 1 ? 1 : Math.max(0.45, aspect);
-  const portraitFov = aspect >= 1 ? 52 : 64;
+  // Target a fixed 58deg HORIZONTAL fov on portrait screens (any aspect,
+  // 19:9 or 20:9) rather than a flat vertical-fov number: solved from the
+  // real camera path (camZ 15 -> -46) so the roadside signs at x=+-7.6,
+  // z=-42..-54 are inside the frustum for the whole time they're fading in
+  // (p 0.58-0.78), not just clipping the edge right as they pass the camera.
+  const spread = aspect >= 1 ? 1 : 0.55;
+  const portraitFov = (() => {
+    if (aspect >= 1) return 52;
+    const targetHorizontalFovDeg = 58;
+    const halfH = THREE.MathUtils.degToRad(targetHorizontalFovDeg / 2);
+    const halfV = Math.atan(Math.tan(halfH) / aspect);
+    return THREE.MathUtils.radToDeg(halfV) * 2;
+  })();
   const smoothed = useRef(0);
   const time = useRef(0);
 
