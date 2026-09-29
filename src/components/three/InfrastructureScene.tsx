@@ -52,7 +52,17 @@ export default function InfrastructureScene({
   tier: "full" | "lite";
 }) {
   const isFull = tier === "full";
-  const { camera } = useThree();
+  const { camera, size } = useThree();
+
+  // PORTRAIT FIX. The camera has a fixed *vertical* FOV of 52deg, so on a
+  // 9:19.5 phone the horizontal FOV collapses to ~25deg (82deg on desktop).
+  // Everything on the shoulders (x = +-7..9) then sits outside the frustum
+  // for almost the whole scroll, leaving only the centre line. On portrait
+  // screens we widen the FOV a bit and pull the roadside props toward the
+  // road centre with `spread` (1 on landscape, ~0.5 on a phone).
+  const aspect = size.width / Math.max(1, size.height);
+  const spread = aspect >= 1 ? 1 : Math.max(0.45, aspect);
+  const portraitFov = aspect >= 1 ? 52 : 64;
   const smoothed = useRef(0);
   const time = useRef(0);
 
@@ -115,8 +125,14 @@ export default function InfrastructureScene({
     ]);
   }, []);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     time.current += delta;
+
+    const cam = state.camera as THREE.PerspectiveCamera;
+    if (cam.fov !== portraitFov) {
+      cam.fov = portraitFov;
+      cam.updateProjectionMatrix();
+    }
     const target = progressRef.value;
     smoothed.current = THREE.MathUtils.damp(smoothed.current, target, 4, delta);
     const p = smoothed.current;
@@ -242,7 +258,7 @@ export default function InfrastructureScene({
       {/* White dashed lane markings, flat on the road — visible immediately,
           right from the start of the scroll */}
       {dashes.map((dash, i) => (
-        <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[dash.x, 0.018, dash.z]}>
+        <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[dash.x * spread, 0.018, dash.z]}>
           <planeGeometry args={[0.2, 2.6]} />
           <meshStandardMaterial color="#f2f5f7" roughness={0.45} />
         </mesh>
@@ -255,7 +271,7 @@ export default function InfrastructureScene({
             ref={(el) => {
               rpmRefs.current[i] = el;
             }}
-            position={[7.2, 0.05, rpm.z]}
+            position={[7.2 * spread, 0.05, rpm.z]}
           >
             <boxGeometry args={[0.16, 0.05, 0.16]} />
             <meshStandardMaterial
@@ -265,7 +281,7 @@ export default function InfrastructureScene({
               toneMapped={false}
             />
           </mesh>
-          <mesh position={[-7.2, 0.05, rpm.z]}>
+          <mesh position={[-7.2 * spread, 0.05, rpm.z]}>
             <boxGeometry args={[0.16, 0.05, 0.16]} />
             <meshStandardMaterial
               color="#ff6a13"
@@ -343,7 +359,7 @@ export default function InfrastructureScene({
 
       {/* Roadside highway sign board on an L-shaped cantilever post */}
       <group ref={signRef} position={[0, -7, 0]}>
-        <group position={[7.4, 0, -16]}>
+        <group position={[7.4 * spread, 0, -16]}>
           {/* Post from the ground up */}
           <mesh position={[0, 2.6, 0]}>
             <cylinderGeometry args={[0.13, 0.13, 5.2, 16]} />
@@ -385,7 +401,7 @@ export default function InfrastructureScene({
 
       {/* CCTV on a grounded roadside pole */}
       <group ref={cctvRef} position={[0, -8, 0]}>
-        <group position={[-7.2, 0, -38]}>
+        <group position={[-7.2 * spread, 0, -38]}>
           <mesh position={[0, 2.9, 0]}>
             <cylinderGeometry args={[0.11, 0.14, 5.8, 16]} />
             <meshStandardMaterial color="#3d4247" metalness={0.7} roughness={0.4} />
@@ -477,7 +493,7 @@ export default function InfrastructureScene({
             ref={(el) => {
               warnSignRefs.current[i] = el;
             }}
-            position={[sign.x, -2.4, sign.z]}
+            position={[sign.x * spread, -2.4, sign.z]}
           >
             {/* Post — height stops right at the bottom of the sign board */}
             <mesh position={[0, postHeight / 2, -0.04]}>

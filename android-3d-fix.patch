@@ -1,0 +1,409 @@
+diff -ruN '--exclude=node_modules' '--exclude=.next' '--exclude=tsconfig.tsbuildinfo' '--exclude=next-env.d.ts' /tmp/orig/daya-enterprises/src/components/Hero.tsx daya-enterprises/src/components/Hero.tsx
+--- /tmp/orig/daya-enterprises/src/components/Hero.tsx	2026-09-27 15:53:06.000000000 +0000
++++ daya-enterprises/src/components/Hero.tsx	2026-09-28 16:53:45.773631194 +0000
+@@ -8,6 +8,7 @@
+ import { createProgressStore } from "@/lib/scrollProgress";
+ import { usePrefersReducedMotion } from "@/lib/useReducedMotion";
+ import { useDeviceTier } from "@/lib/useDeviceTier";
++import { hasWebGL, isDebug3D, isForce3D } from "@/lib/webgl";
+ 
+ const HeroCanvas = dynamic(() => import("./three/HeroCanvas"), {
+   ssr: false,
+@@ -33,11 +34,14 @@
+   const reducedMotion = usePrefersReducedMotion();
+   const { tier, checked } = useDeviceTier();
+   const [captionIndex, setCaptionIndex] = useState(0);
++  const [canvasFailed, setCanvasFailed] = useState<string | null>(null);
+ 
+-  // Only "minimal" (older/low-power touch devices) skips WebGL entirely.
+-  // "full" and "lite" both get the animated scene, just tuned differently.
+-  const useCanvas = checked && tier !== "minimal";
++  // "minimal" (no WebGL / very weak device) skips WebGL entirely.
++  // ?force3d in the URL bypasses the tier check for testing on a real phone.
++  const forced = checked && isForce3D();
++  const useCanvas = checked && !canvasFailed && (tier !== "minimal" || forced);
+   const canvasTier = tier === "full" ? "full" : "lite";
++  const showUnavailable = checked && !useCanvas;
+ 
+   useEffect(() => {
+     gsap.registerPlugin(ScrollTrigger);
+@@ -83,7 +87,12 @@
+         {/* 3D layer or static fallback */}
+         <div className="absolute inset-0">
+           {useCanvas ? (
+-            <HeroCanvas progressRef={progressRef} reducedMotion={reducedMotion} tier={canvasTier} />
++            <HeroCanvas
++              progressRef={progressRef}
++              reducedMotion={reducedMotion}
++              tier={canvasTier}
++              onFail={setCanvasFailed}
++            />
+           ) : (
+             <div
+               aria-hidden="true"
+@@ -94,10 +103,36 @@
+                   glow drift. prefers-reduced-motion freezes this via the
+                   global rule in globals.css. */}
+               <div className="hero-fallback-glow" />
++              {showUnavailable && (
++                <p className="absolute inset-x-0 top-24 text-center text-[11px] tracking-widest text-white/40">
++                  3D animation unavailable on this device
++                </p>
++              )}
+             </div>
+           )}
+         </div>
+ 
++        {/* On-screen diagnostics: open the site with ?debug3d on the phone */}
++        {checked && isDebug3D() && (
++          <pre className="pointer-events-none absolute left-2 top-20 z-50 max-w-[92%] whitespace-pre-wrap rounded bg-black/70 p-2 text-[10px] leading-tight text-lime-300">
++            {JSON.stringify(
++              {
++                tier,
++                useCanvas,
++                canvasFailed,
++                webgl: hasWebGL(),
++                cores: navigator.hardwareConcurrency,
++                mem: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
++                w: window.innerWidth,
++                h: window.innerHeight,
++                dpr: window.devicePixelRatio,
++              },
++              null,
++              1
++            )}
++          </pre>
++        )}
++
+         {/* Vignette */}
+         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,transparent_35%,rgba(15,27,20,0.78)_100%)]" />
+ 
+diff -ruN '--exclude=node_modules' '--exclude=.next' '--exclude=tsconfig.tsbuildinfo' '--exclude=next-env.d.ts' /tmp/orig/daya-enterprises/src/components/three/HeroCanvas.tsx daya-enterprises/src/components/three/HeroCanvas.tsx
+--- /tmp/orig/daya-enterprises/src/components/three/HeroCanvas.tsx	2026-09-27 15:52:42.000000000 +0000
++++ daya-enterprises/src/components/three/HeroCanvas.tsx	2026-09-28 16:53:34.108089649 +0000
+@@ -1,33 +1,104 @@
+ "use client";
+ 
+-import { Suspense } from "react";
++import { Component, Suspense, useCallback, useEffect, useRef, type ReactNode } from "react";
+ import { Canvas } from "@react-three/fiber";
+ import InfrastructureScene from "./InfrastructureScene";
+ import type { ProgressStore } from "@/lib/scrollProgress";
++import { isDebug3D } from "@/lib/webgl";
++
++// Catches anything thrown while the scene mounts (WebGL init failure, texture
++// 404, shader compile error) so the page shows the fallback instead of an
++// empty canvas.
++class CanvasErrorBoundary extends Component<
++  { children: ReactNode; onError: (msg: string) => void },
++  { failed: boolean }
++> {
++  state = { failed: false };
++  static getDerivedStateFromError() {
++    return { failed: true };
++  }
++  componentDidCatch(error: Error) {
++    console.error("[HeroCanvas] scene crashed:", error);
++    this.props.onError(error.message);
++  }
++  render() {
++    return this.state.failed ? null : this.props.children;
++  }
++}
+ 
+ export default function HeroCanvas({
+   progressRef,
+   reducedMotion,
+   tier,
++  onFail,
+ }: {
+   progressRef: ProgressStore;
+   reducedMotion: boolean;
+   tier: "full" | "lite";
++  onFail?: (reason: string) => void;
+ }) {
+   const isFull = tier === "full";
++  const restoreTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
++  const cleanup = useRef<(() => void) | null>(null);
++
++  useEffect(
++    () => () => {
++      if (restoreTimer.current) clearTimeout(restoreTimer.current);
++      cleanup.current?.();
++    },
++    []
++  );
++
++  const fail = useCallback((reason: string) => onFail?.(reason), [onFail]);
+ 
+   return (
+-    <Canvas
+-      dpr={isFull ? [1, 1.8] : [1, 1]}
+-      gl={{
+-        antialias: isFull,
+-        powerPreference: isFull ? "high-performance" : "low-power",
+-      }}
+-      camera={{ fov: 52, near: 0.1, far: 200, position: [0, 3.4, 15] }}
+-    >
+-      <Suspense fallback={null}>
+-        <InfrastructureScene progressRef={progressRef} reducedMotion={reducedMotion} tier={tier} />
+-      </Suspense>
+-    </Canvas>
++    <CanvasErrorBoundary onError={fail}>
++      <Canvas
++        // 1.5 (not 1) on lite: a phone with a 3x screen upscales a dpr-1
++        // canvas 3x, which is what makes the centre line look stair-stepped.
++        dpr={isFull ? [1, 1.8] : [1, 1.5]}
++        gl={{
++          antialias: isFull,
++          powerPreference: isFull ? "high-performance" : "low-power",
++          alpha: false,
++          stencil: false,
++          failIfMajorPerformanceCaveat: false,
++        }}
++        camera={{ fov: 52, near: 0.1, far: 200, position: [0, 3.4, 15] }}
++        onCreated={({ gl }) => {
++          const el = gl.domElement;
++          if (isDebug3D()) {
++            const ctx = gl.getContext();
++            const dbg = ctx.getExtension("WEBGL_debug_renderer_info");
++            console.log("[HeroCanvas] created", {
++              webgl2: typeof WebGL2RenderingContext !== "undefined" && ctx instanceof WebGL2RenderingContext,
++              renderer: dbg ? ctx.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : "n/a",
++              maxTextureSize: ctx.getParameter(ctx.MAX_TEXTURE_SIZE),
++            });
++          }
++          const onLost = (e: Event) => {
++            e.preventDefault(); // required, otherwise the browser will never restore it
++            console.warn("[HeroCanvas] WebGL context lost");
++            // three.js re-initialises itself on 'webglcontextrestored'. If that
++            // doesn't happen within 4s, give up and show the fallback.
++            restoreTimer.current = setTimeout(() => fail("context-lost"), 4000);
++          };
++          const onRestored = () => {
++            console.warn("[HeroCanvas] WebGL context restored");
++            if (restoreTimer.current) clearTimeout(restoreTimer.current);
++          };
++          el.addEventListener("webglcontextlost", onLost);
++          el.addEventListener("webglcontextrestored", onRestored);
++          cleanup.current = () => {
++            el.removeEventListener("webglcontextlost", onLost);
++            el.removeEventListener("webglcontextrestored", onRestored);
++          };
++        }}
++      >
++        <Suspense fallback={null}>
++          <InfrastructureScene progressRef={progressRef} reducedMotion={reducedMotion} tier={tier} />
++        </Suspense>
++      </Canvas>
++    </CanvasErrorBoundary>
+   );
+ }
+diff -ruN '--exclude=node_modules' '--exclude=.next' '--exclude=tsconfig.tsbuildinfo' '--exclude=next-env.d.ts' /tmp/orig/daya-enterprises/src/components/three/InfrastructureScene.tsx daya-enterprises/src/components/three/InfrastructureScene.tsx
+--- /tmp/orig/daya-enterprises/src/components/three/InfrastructureScene.tsx	2026-09-27 15:52:54.000000000 +0000
++++ daya-enterprises/src/components/three/InfrastructureScene.tsx	2026-09-28 16:55:03.309082861 +0000
+@@ -52,7 +52,17 @@
+   tier: "full" | "lite";
+ }) {
+   const isFull = tier === "full";
+-  const { camera } = useThree();
++  const { camera, size } = useThree();
++
++  // PORTRAIT FIX. The camera has a fixed *vertical* FOV of 52deg, so on a
++  // 9:19.5 phone the horizontal FOV collapses to ~25deg (82deg on desktop).
++  // Everything on the shoulders (x = +-7..9) then sits outside the frustum
++  // for almost the whole scroll, leaving only the centre line. On portrait
++  // screens we widen the FOV a bit and pull the roadside props toward the
++  // road centre with `spread` (1 on landscape, ~0.5 on a phone).
++  const aspect = size.width / Math.max(1, size.height);
++  const spread = aspect >= 1 ? 1 : Math.max(0.45, aspect);
++  const portraitFov = aspect >= 1 ? 52 : 64;
+   const smoothed = useRef(0);
+   const time = useRef(0);
+ 
+@@ -115,8 +125,14 @@
+     ]);
+   }, []);
+ 
+-  useFrame((_, delta) => {
++  useFrame((state, delta) => {
+     time.current += delta;
++
++    const cam = state.camera as THREE.PerspectiveCamera;
++    if (cam.fov !== portraitFov) {
++      cam.fov = portraitFov;
++      cam.updateProjectionMatrix();
++    }
+     const target = progressRef.value;
+     smoothed.current = THREE.MathUtils.damp(smoothed.current, target, 4, delta);
+     const p = smoothed.current;
+@@ -242,7 +258,7 @@
+       {/* White dashed lane markings, flat on the road — visible immediately,
+           right from the start of the scroll */}
+       {dashes.map((dash, i) => (
+-        <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[dash.x, 0.018, dash.z]}>
++        <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[dash.x * spread, 0.018, dash.z]}>
+           <planeGeometry args={[0.2, 2.6]} />
+           <meshStandardMaterial color="#f2f5f7" roughness={0.45} />
+         </mesh>
+@@ -255,7 +271,7 @@
+             ref={(el) => {
+               rpmRefs.current[i] = el;
+             }}
+-            position={[7.2, 0.05, rpm.z]}
++            position={[7.2 * spread, 0.05, rpm.z]}
+           >
+             <boxGeometry args={[0.16, 0.05, 0.16]} />
+             <meshStandardMaterial
+@@ -265,7 +281,7 @@
+               toneMapped={false}
+             />
+           </mesh>
+-          <mesh position={[-7.2, 0.05, rpm.z]}>
++          <mesh position={[-7.2 * spread, 0.05, rpm.z]}>
+             <boxGeometry args={[0.16, 0.05, 0.16]} />
+             <meshStandardMaterial
+               color="#ff6a13"
+@@ -343,7 +359,7 @@
+ 
+       {/* Roadside highway sign board on an L-shaped cantilever post */}
+       <group ref={signRef} position={[0, -7, 0]}>
+-        <group position={[7.4, 0, -16]}>
++        <group position={[7.4 * spread, 0, -16]}>
+           {/* Post from the ground up */}
+           <mesh position={[0, 2.6, 0]}>
+             <cylinderGeometry args={[0.13, 0.13, 5.2, 16]} />
+@@ -385,7 +401,7 @@
+ 
+       {/* CCTV on a grounded roadside pole */}
+       <group ref={cctvRef} position={[0, -8, 0]}>
+-        <group position={[-7.2, 0, -38]}>
++        <group position={[-7.2 * spread, 0, -38]}>
+           <mesh position={[0, 2.9, 0]}>
+             <cylinderGeometry args={[0.11, 0.14, 5.8, 16]} />
+             <meshStandardMaterial color="#3d4247" metalness={0.7} roughness={0.4} />
+@@ -477,7 +493,7 @@
+             ref={(el) => {
+               warnSignRefs.current[i] = el;
+             }}
+-            position={[sign.x, -2.4, sign.z]}
++            position={[sign.x * spread, -2.4, sign.z]}
+           >
+             {/* Post — height stops right at the bottom of the sign board */}
+             <mesh position={[0, postHeight / 2, -0.04]}>
+diff -ruN '--exclude=node_modules' '--exclude=.next' '--exclude=tsconfig.tsbuildinfo' '--exclude=next-env.d.ts' /tmp/orig/daya-enterprises/src/lib/useDeviceTier.ts daya-enterprises/src/lib/useDeviceTier.ts
+--- /tmp/orig/daya-enterprises/src/lib/useDeviceTier.ts	2026-09-27 15:52:36.000000000 +0000
++++ daya-enterprises/src/lib/useDeviceTier.ts	2026-09-28 16:53:34.105014126 +0000
+@@ -1,6 +1,7 @@
+ "use client";
+ 
+ import { useSyncExternalStore } from "react";
++import { hasWebGL, isDebug3D } from "./webgl";
+ 
+ export type DeviceTier = "full" | "lite" | "minimal";
+ 
+@@ -26,32 +27,49 @@
+  * Uses useSyncExternalStore so the check runs safely on the client without
+  * causing hydration mismatches.
+  */
++let logged = false;
++
+ function computeTier(): DeviceTier {
++  // No WebGL at all -> CSS fallback, regardless of device class.
++  if (!hasWebGL()) return logAndReturn("minimal");
++
+   const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+ 
+   // Mouse/trackpad devices (including a laptop with a touchscreen used via
+   // trackpad) always get the full experience.
+-  if (!coarsePointer) return "full";
++  if (!coarsePointer) return logAndReturn("full");
+ 
+-  const cores =
+-    typeof navigator !== "undefined" && "hardwareConcurrency" in navigator
+-      ? navigator.hardwareConcurrency
+-      : 8;
+-  // deviceMemory is Chromium-only; treat "unknown" (e.g. Safari) as
+-  // "don't downgrade on this signal alone".
+-  const memory =
+-    typeof navigator !== "undefined" && "deviceMemory" in navigator
+-      ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory
+-      : undefined;
+-  const isNarrow = window.innerWidth < 768;
++  // hardwareConcurrency / deviceMemory are NOT reliable: Brave randomises
++  // ("farbles") them for fingerprint protection and Chrome buckets/caps them,
++  // so a good phone can report 2 cores or 0.5 GB. Only treat a device as
++  // "minimal" when BOTH signals agree it is weak, or memory alone is <= 1 GB.
++  const cores = navigator.hardwareConcurrency as number | undefined;
++  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
++
++  const weakCores = cores !== undefined && cores <= 2;
++  const weakMemory = memory !== undefined && memory <= 2;
++  const veryWeakMemory = memory !== undefined && memory <= 1;
++  if (veryWeakMemory || (weakCores && weakMemory)) return logAndReturn("minimal");
+ 
+-  const veryLowPower = (cores !== undefined && cores <= 3) || (memory !== undefined && memory <= 2);
+-  if (veryLowPower) return "minimal";
+-
+-  const midPower = isNarrow || (cores !== undefined && cores <= 6);
+-  if (midPower) return "lite";
++  // Every other touch device gets the (trimmed) animated scene.
++  return logAndReturn("lite");
++}
+ 
+-  return "full";
++function logAndReturn(tier: DeviceTier): DeviceTier {
++  if (!logged && typeof window !== "undefined" && isDebug3D()) {
++    logged = true;
++    console.log("[device-tier]", {
++      tier,
++      hardwareConcurrency: navigator.hardwareConcurrency,
++      deviceMemory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
++      width: window.innerWidth,
++      height: window.innerHeight,
++      dpr: window.devicePixelRatio,
++      coarse: window.matchMedia("(pointer: coarse)").matches,
++      webgl: hasWebGL(),
++    });
++  }
++  return tier;
+ }
+ 
+ function subscribe(callback: () => void) {
+diff -ruN '--exclude=node_modules' '--exclude=.next' '--exclude=tsconfig.tsbuildinfo' '--exclude=next-env.d.ts' /tmp/orig/daya-enterprises/src/lib/webgl.ts daya-enterprises/src/lib/webgl.ts
+--- /tmp/orig/daya-enterprises/src/lib/webgl.ts	1970-01-01 00:00:00.000000000 +0000
++++ daya-enterprises/src/lib/webgl.ts	2026-09-28 16:53:34.094721906 +0000
+@@ -0,0 +1,33 @@
++// WebGL capability helpers. The result is cached because useDeviceTier reads
++// it on every snapshot and creating a GL context is not free.
++
++let cached: boolean | null = null;
++
++export function hasWebGL(): boolean {
++  if (typeof window === "undefined") return false;
++  if (cached !== null) return cached;
++  try {
++    const canvas = document.createElement("canvas");
++    const gl =
++      (canvas.getContext("webgl2") as WebGL2RenderingContext | null) ||
++      (canvas.getContext("webgl") as WebGLRenderingContext | null) ||
++      (canvas.getContext("experimental-webgl") as WebGLRenderingContext | null);
++    cached = !!(window.WebGLRenderingContext && gl);
++    // Release the probe context immediately so it doesn't count against the
++    // browser's active-context limit (Android Chrome allows very few).
++    gl?.getExtension("WEBGL_lose_context")?.loseContext();
++  } catch {
++    cached = false;
++  }
++  return cached;
++}
++
++export function isDebug3D(): boolean {
++  if (typeof window === "undefined") return false;
++  return new URLSearchParams(window.location.search).has("debug3d");
++}
++
++export function isForce3D(): boolean {
++  if (typeof window === "undefined") return false;
++  return new URLSearchParams(window.location.search).has("force3d");
++}

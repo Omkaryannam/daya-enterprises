@@ -8,6 +8,7 @@ import { hero, business } from "@/lib/content";
 import { createProgressStore } from "@/lib/scrollProgress";
 import { usePrefersReducedMotion } from "@/lib/useReducedMotion";
 import { useDeviceTier } from "@/lib/useDeviceTier";
+import { hasWebGL, isDebug3D, isForce3D } from "@/lib/webgl";
 
 const HeroCanvas = dynamic(() => import("./three/HeroCanvas"), {
   ssr: false,
@@ -33,11 +34,14 @@ export default function Hero() {
   const reducedMotion = usePrefersReducedMotion();
   const { tier, checked } = useDeviceTier();
   const [captionIndex, setCaptionIndex] = useState(0);
+  const [canvasFailed, setCanvasFailed] = useState<string | null>(null);
 
-  // Only "minimal" (older/low-power touch devices) skips WebGL entirely.
-  // "full" and "lite" both get the animated scene, just tuned differently.
-  const useCanvas = checked && tier !== "minimal";
+  // "minimal" (no WebGL / very weak device) skips WebGL entirely.
+  // ?force3d in the URL bypasses the tier check for testing on a real phone.
+  const forced = checked && isForce3D();
+  const useCanvas = checked && !canvasFailed && (tier !== "minimal" || forced);
   const canvasTier = tier === "full" ? "full" : "lite";
+  const showUnavailable = checked && !useCanvas;
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
@@ -83,7 +87,12 @@ export default function Hero() {
         {/* 3D layer or static fallback */}
         <div className="absolute inset-0">
           {useCanvas ? (
-            <HeroCanvas progressRef={progressRef} reducedMotion={reducedMotion} tier={canvasTier} />
+            <HeroCanvas
+              progressRef={progressRef}
+              reducedMotion={reducedMotion}
+              tier={canvasTier}
+              onFail={setCanvasFailed}
+            />
           ) : (
             <div
               aria-hidden="true"
@@ -94,9 +103,35 @@ export default function Hero() {
                   glow drift. prefers-reduced-motion freezes this via the
                   global rule in globals.css. */}
               <div className="hero-fallback-glow" />
+              {showUnavailable && (
+                <p className="absolute inset-x-0 top-24 text-center text-[11px] tracking-widest text-white/40">
+                  3D animation unavailable on this device
+                </p>
+              )}
             </div>
           )}
         </div>
+
+        {/* On-screen diagnostics: open the site with ?debug3d on the phone */}
+        {checked && isDebug3D() && (
+          <pre className="pointer-events-none absolute left-2 top-20 z-50 max-w-[92%] whitespace-pre-wrap rounded bg-black/70 p-2 text-[10px] leading-tight text-lime-300">
+            {JSON.stringify(
+              {
+                tier,
+                useCanvas,
+                canvasFailed,
+                webgl: hasWebGL(),
+                cores: navigator.hardwareConcurrency,
+                mem: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
+                w: window.innerWidth,
+                h: window.innerHeight,
+                dpr: window.devicePixelRatio,
+              },
+              null,
+              1
+            )}
+          </pre>
+        )}
 
         {/* Vignette */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,transparent_35%,rgba(15,27,20,0.78)_100%)]" />
