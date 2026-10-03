@@ -198,7 +198,7 @@ export default function ContactSection() {
 
               <button
                 type="submit"
-                data-cursor="EXPLORE"
+                data-cursor="SEND"
                 disabled={status === "sending"}
                 className="mt-6 w-full rounded-full bg-flame py-3.5 text-sm font-bold tracking-wide text-ink transition-[transform,background-color] hover:scale-[1.02] hover:bg-flame-deep hover:text-white disabled:opacity-60 disabled:hover:scale-100 sm:w-auto sm:px-8"
               >

@@ -64,7 +64,7 @@ export const about = {
     "Quality execution",
     "Reliable products",
     "Professional installation",
-    "Maintenance",
+    "AMC Maintenance",
     "Safety",
     "Customer satisfaction",
     "Timely project completion",
@@ -92,7 +92,7 @@ export const serviceCards: ServiceCard[] = [
     title: "LED Display Solutions",
     description:
       "Supply, installation, repair and AMC for indoor & outdoor LED displays and video walls.",
-    bullets: ["LED Display Supply", "Installation", "Repair & Maintenance", "AMC"],
+    bullets: ["LED Display Supply", "Installation", "Repair & Maintenance", "AMC Support"],
     image: "/images/projects/led-display-projects.jpg",
   },
   {
@@ -100,7 +100,7 @@ export const serviceCards: ServiceCard[] = [
     title: "CCTV & Surveillance",
     description:
       "Commercial and industrial CCTV installation, supply and maintenance for reliable surveillance.",
-    bullets: ["CCTV Installation", "Camera Supply", "Maintenance", "Surveillance Systems"],
+    bullets: ["CCTV Installation", "Camera Supply", "AMC Maintenance", "Surveillance Systems"],
     image: "/images/projects/cctv-projects.jpg",
   },
   {
