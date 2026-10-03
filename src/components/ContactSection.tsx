@@ -123,7 +123,7 @@ export default function ContactSection() {
                 </a>
               </div>
 
-              <div className="mt-8 aspect-[4/3] w-full overflow-hidden rounded-xl border border-line bg-paper-alt">
+              <div className="mt-8 aspect-4/3 w-full overflow-hidden rounded-xl border border-line bg-paper-alt">
                 <iframe
                   title="Daya Enterprises location"
                   src={`https://www.google.com/maps?q=${business.mapCoords}&z=16&output=embed`}
