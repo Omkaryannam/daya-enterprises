@@ -96,6 +96,45 @@ html {
   animation-play-state: paused;
 }
 
+/* Fades the whole strip out at both edges (not just a fixed-width overlay),
+   so a logo shrinks away smoothly as it scrolls through the edge instead of
+   being cut off partway through. */
+.worked-with-fade {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 64px,
+    black calc(100% - 64px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 64px,
+    black calc(100% - 64px),
+    transparent 100%
+  );
+}
+
+@media (min-width: 640px) {
+  .worked-with-fade {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      black 160px,
+      black calc(100% - 160px),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      black 160px,
+      black calc(100% - 160px),
+      transparent 100%
+    );
+  }
+}
+
 body {
   background: var(--color-paper);
   color: var(--color-ink);

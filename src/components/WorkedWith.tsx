@@ -21,11 +21,12 @@ export default function WorkedWith() {
         <SectionHeading eyebrow={workedWith.eyebrow} title={workedWith.title} align="center" accent="flame" />
       </div>
 
-      <div className="relative mt-12">
-        {/* Edge fade so logos scroll in/out smoothly instead of hard-cutting */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-paper to-transparent sm:w-32" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-paper to-transparent sm:w-32" />
-
+      {/* worked-with-fade masks the whole strip with a left/right gradient, so a
+          logo fades out smoothly as it scrolls through the edge instead of
+          being hard-clipped partway through (which looked like a broken
+          half-logo). This works at any card width, unlike a fixed-width
+          overlay div. */}
+      <div className="worked-with-fade relative mt-12">
         <div className="worked-with-marquee flex w-max items-center gap-6">
           {track.map((entry, i) => (
             <div
