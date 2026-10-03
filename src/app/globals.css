@@ -77,6 +77,25 @@ html {
   }
 }
 
+/* Infinite logo marquee (WorkedWith.tsx). Track is duplicated in the
+   component, so -50% is exactly one full set — the loop is seamless. */
+@keyframes worked-with-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.worked-with-marquee {
+  animation: worked-with-scroll 22s linear infinite;
+}
+
+.worked-with-marquee:hover {
+  animation-play-state: paused;
+}
+
 body {
   background: var(--color-paper);
   color: var(--color-ink);

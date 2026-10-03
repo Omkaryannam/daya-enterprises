@@ -100,7 +100,7 @@ export const serviceCards: ServiceCard[] = [
     title: "CCTV & Surveillance",
     description:
       "Commercial and industrial CCTV installation, supply and maintenance for reliable surveillance.",
-    bullets: ["CCTV Installation", "Camera Supply", "AMC Maintenance", "Surveillance Systems"],
+    bullets: ["CCTV Installation", "Camera Supply", "Maintenance", "Surveillance Systems"],
     image: "/images/projects/cctv-projects.jpg",
   },
   {
@@ -233,10 +233,23 @@ export const industries = [
   "Public Spaces",
 ];
 
+export type WorkedWithEntry = {
+  name: string;
+  /**
+   * Path to the company's official logo (e.g. "/images/clients/3m.png").
+   * Only set this once you have permission to use that company's logo —
+   * leave it unset and the clean text badge is shown instead.
+   */
+  logo?: string;
+};
+
 export const workedWith = {
   eyebrow: "WORKED WITH",
   title: "Delivering for established names",
-  names: ["3M", "L&T"],
+  entries: [
+    { name: "3M", logo: "/images/clients/3m.png" },
+    { name: "L&T", logo: "/images/clients/lt.png" },
+  ] as WorkedWithEntry[],
 };
 
 export const featured = {
