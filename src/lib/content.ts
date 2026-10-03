@@ -92,7 +92,7 @@ export const serviceCards: ServiceCard[] = [
     title: "LED Display Solutions",
     description:
       "Supply, installation, repair and AMC for indoor & outdoor LED displays and video walls.",
-    bullets: ["LED Display Supply", "Installation", "Repair & Maintenance", "AMC Support"],
+    bullets: ["LED Display Supply", "Installation", "Repair & Maintenance", "AMC"],
     image: "/images/projects/led-display-projects.jpg",
   },
   {
@@ -232,6 +232,12 @@ export const industries = [
   "Retail",
   "Public Spaces",
 ];
+
+export const workedWith = {
+  eyebrow: "WORKED WITH",
+  title: "Delivering for established names",
+  names: ["3M", "L&T"],
+};
 
 export const featured = {
   led: {

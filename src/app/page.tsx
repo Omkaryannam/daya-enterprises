@@ -3,6 +3,7 @@ import CustomCursor from "@/components/CustomCursor";
 import ScrollProgressBar from "@/components/ScrollProgressBar";
 import Hero from "@/components/Hero";
 import About from "@/components/About";
+import WorkedWith from "@/components/WorkedWith"
 import Services from "@/components/Services";
 import FeaturedLED from "@/components/FeaturedLED";
 import FeaturedCCTV from "@/components/FeaturedCCTV";
@@ -25,6 +26,7 @@ export default function Home() {
       <main>
         <Hero />
         <About />
+        <WorkedWith />
         <Services />
         <FeaturedLED />
         <FeaturedCCTV />
