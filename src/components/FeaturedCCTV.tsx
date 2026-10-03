@@ -11,7 +11,7 @@ export default function FeaturedCCTV() {
     <section aria-label="CCTV and surveillance" className="relative overflow-hidden bg-paper-alt py-24 md:py-32">
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-6 lg:grid-cols-2 lg:px-10">
         <Reveal className="order-2 lg:order-1">
-          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-forest/20 bg-forest-night shadow-[0_24px_60px_-28px_rgba(15,27,20,0.65)]">
+          <div className="relative aspect-4/3 w-full overflow-hidden rounded-2xl border border-forest/20 bg-forest-night shadow-[0_24px_60px_-28px_rgba(15,27,20,0.65)]">
             <Image
               src="/images/projects/cctv-projects.jpg"
               alt="Daya Enterprises CCTV camera range"
